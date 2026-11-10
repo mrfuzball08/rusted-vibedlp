@@ -1,0 +1,545 @@
+import { ComboBox, Palette as WidgetPalette } from "std-widgets.slint";
+import { Action, Card, Divider, HitBox, Icon, IconTile, Label, Palette, Pill, Scheme, SectionTitle } from "components.slint";
+export { Palette }
+
+component AddressInput inherits Rectangle {
+    in-out property <string> text <=> editor.text;
+    in property <bool> read-only;
+    callback submitted();
+    forward-focus: editor;
+    height: 48px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: editor.has-focus ? Palette.scheme.accent : Palette.scheme.border;
+    background: Palette.scheme.control;
+    accessible-role: text-input;
+    accessible-label: "Enlace del contenido";
+    accessible-value <=> root.text;
+    accessible-read-only: root.read-only;
+    accessible-action-set-value(value) => { if !root.read-only { root.text = value; } }
+
+    Icon {
+        x: 13px;
+        y: (parent.height - self.height) / 2;
+        source: @image-url("icons/link.svg");
+    }
+
+    Rectangle {
+        x: 42px;
+        width: parent.width - self.x - 12px;
+        height: parent.height;
+        clip: true;
+
+        if root.text == "" && editor.preedit-text == "": Label {
+            x: 0;
+            width: 100%;
+            height: 100%;
+            text: "https://…";
+            color: Palette.scheme.muted;
+        }
+
+        editor := TextInput {
+            width: 100%;
+            height: 100%;
+            vertical-alignment: center;
+            font-size: 14px;
+            color: Palette.scheme.text;
+            single-line: true;
+            read-only: root.read-only;
+            selection-background-color: Palette.scheme.accent;
+            selection-foreground-color: Palette.scheme.ink;
+            accepted => { root.submitted(); }
+        }
+
+        ContextMenuArea {
+            Menu {
+                MenuItem { title: "Cortar"; enabled: !root.read-only; activated => { editor.cut(); } }
+                MenuItem { title: "Copiar"; activated => { editor.copy(); } }
+                MenuItem {
+                    title: "Pegar";
+                    enabled: !root.read-only;
+                    activated => { editor.focus(); editor.paste(); }
+                }
+                MenuItem { title: "Seleccionar todo"; activated => { editor.select-all(); } }
+            }
+        }
+    }
+}
+
+component PlaylistToggle inherits HitBox {
+    in property <bool> checked;
+    height: 36px;
+    label: "Descargar lista completa";
+    accessible-role: checkbox;
+    accessible-checkable: true;
+    accessible-checked: root.checked;
+    border-radius: 7px;
+    border-width: 1px;
+    border-color: root.focused ? Palette.scheme.accent : transparent;
+    background: root.hovered ? Palette.scheme.hover : transparent;
+
+    HorizontalLayout {
+        padding-left: 4px;
+        spacing: 9px;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 18px; height: 18px; border-radius: 4px;
+                border-width: 1px;
+                border-color: root.checked ? Palette.scheme.accent : Palette.scheme.muted;
+                background: root.checked ? Palette.scheme.accent : Palette.scheme.control;
+
+                if root.checked: Icon {
+                    x: 2px; y: 2px; width: 14px; height: 14px;
+                    source: @image-url("icons/check.svg");
+                    tint: Palette.scheme.ink;
+                }
+            }
+        }
+        Label { text: root.label; font-size: 13px; }
+    }
+}
+
+component ThemeChoice inherits HitBox {
+    in property <Scheme> option;
+    in property <bool> selected;
+    label: root.option.name;
+    height: 44px;
+    min-width: 190px;
+    preferred-width: 220px;
+    horizontal-stretch: 1;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: root.focused || root.selected ? Palette.scheme.accent : Palette.scheme.border;
+    background: root.hovered ? Palette.scheme.hover : Palette.scheme.control;
+    accessible-role: radio-button;
+    accessible-checkable: true;
+    accessible-checked: root.selected;
+
+    HorizontalLayout {
+        padding-left: 11px;
+        padding-right: 10px;
+        spacing: 9px;
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                spacing: 3px;
+                for swatch in [root.option.rail, root.option.hover, root.option.accent]: Rectangle {
+                    width: 10px; height: 16px; border-radius: 3px;
+                    border-color: root.option.border; border-width: 1px;
+                    background: swatch;
+                }
+            }
+        }
+        Label { text: root.label; font-size: 13px; font-weight: 650; horizontal-stretch: 1; }
+        if root.selected: VerticalLayout {
+            alignment: center;
+            Icon { source: @image-url("icons/check.svg"); tint: Palette.scheme.accent; width: 15px; height: 15px; }
+        }
+    }
+}
+
+component DownloadPicker inherits VerticalLayout {
+    in property <string> caption;
+    in property <[string]> options;
+    in property <bool> enabled;
+    in-out property <int> current-index <=> picker.current-index;
+    spacing: 6px;
+    preferred-width: 240px;
+    horizontal-stretch: 1;
+
+    Label { text: root.caption; font-size: 12px; font-weight: 700; }
+    picker := ComboBox {
+        model: root.options;
+        enabled: root.enabled;
+        min-height: 40px;
+        accessible-label: root.caption;
+    }
+}
+
+component DownloadProgress inherits VerticalLayout {
+    in property <string> title;
+    in property <string> detail;
+    in property <float> progress;
+    spacing: 8px;
+
+    HorizontalLayout {
+        spacing: 12px;
+        Label { text: root.title; font-size: 14px; font-weight: 700; horizontal-stretch: 1; }
+        if root.progress >= 0: Label {
+            text: round(root.progress * 100) + "%";
+            color: Palette.scheme.accent;
+            font-size: 13px;
+            font-weight: 700;
+        }
+    }
+
+    Rectangle {
+        height: 6px;
+        border-radius: 3px;
+        background: Palette.scheme.border;
+        clip: true;
+        accessible-role: progress-indicator;
+        accessible-label: "Progreso de la descarga";
+        accessible-value: root.progress >= 0 ? round(root.progress * 100) : "";
+        accessible-value-minimum: 0;
+        accessible-value-maximum: 100;
+
+        Rectangle {
+            x: root.progress >= 0 ? 0px : parent.width * (mod(animation-tick(), 1.6s) / 1.6s * 1.28 - 0.28);
+            y: 0;
+            height: parent.height;
+            width: parent.width * (root.progress >= 0 ? root.progress : 0.28);
+            border-radius: 3px;
+            background: Palette.scheme.accent;
+        }
+    }
+
+    Label { text: root.detail; color: Palette.scheme.muted; font-size: 12px; }
+}
+
+export component AppWindow inherits Window {
+    title: "VibeDLP";
+    icon: @image-url("icons/brand.svg");
+    preferred-width: 820px;
+    preferred-height: 580px;
+    min-width: 560px;
+    min-height: 555px;
+    background: Palette.scheme.background;
+    default-font-size: 14px;
+
+    in-out property <string> url;
+    out property <bool> audio: media-picker.current-index == 1;
+    in-out property <int> video-format;
+    in-out property <int> audio-format;
+    in property <[string]> video-formats;
+    in property <[string]> audio-formats;
+    in-out property <bool> playlist;
+    in property <string> destination;
+    in property <string> active-destination;
+    in property <bool> custom-destination;
+    in property <bool> engine-ready;
+    in property <bool> ffmpeg-ready;
+    in property <string> settings-message;
+
+    in property <bool> busy;
+    in property <bool> cancelling;
+    in property <string> progress-title;
+    in property <string> progress-detail;
+    in property <float> progress: -1;
+    in property <string> result-message;
+    in property <bool> result-error;
+    in property <bool> can-open-destination;
+
+    callback start-download();
+    callback cancel-download();
+    callback browse-destination();
+    callback reset-destination();
+    callback open-destination();
+    callback choose-theme(int);
+    callback refresh-tools();
+
+    init => { WidgetPalette.color-scheme = ColorScheme.dark; }
+
+    VerticalLayout {
+        padding-top: 24px;
+        padding-bottom: 24px;
+        padding-left: 24px;
+        padding-right: 24px;
+        spacing: 22px;
+
+        HorizontalLayout {
+            spacing: 12px;
+
+            Rectangle {
+                width: 42px; height: 42px;
+                border-radius: 30px;
+                background: Palette.scheme.accent;
+                Icon {
+                    width: 22px; height: 22px;
+                    source: @image-url("icons/download.svg");
+                    tint: Palette.scheme.ink;
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                horizontal-stretch: 1;
+                Label { text: "VibeDLP"; font-size: 22px; font-weight: 800; }
+                Label { text: "Descargas multimedia"; font-size: 12px; color: Palette.scheme.muted; }
+            }
+            HitBox {
+                width: 42px; height: 42px;
+                label: "Configuración";
+                border-radius: 9px;
+                border-width: 1px;
+                border-color: self.focused || settings.is-open ? Palette.scheme.accent : Palette.scheme.border;
+                background: self.hovered ? Palette.scheme.hover : Palette.scheme.control;
+                Icon { source: @image-url("icons/settings.svg"); tint: Palette.scheme.text; }
+                clicked => { settings.show(); }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            vertical-stretch: 0;
+            VerticalLayout {
+                preferred-width: 760px;
+                max-width: 760px;
+                spacing: 18px;
+
+                Card {
+                    VerticalLayout {
+                        padding: 18px;
+                        spacing: 12px;
+
+                        SectionTitle {
+                            title: "Descargas";
+                            description: "Pega un enlace y elige qué quieres guardar.";
+                        }
+
+                        VerticalLayout {
+                            vertical-stretch: 0;
+                            spacing: 6px;
+                            Label { text: "Enlace"; font-size: 12px; font-weight: 700; }
+                            AddressInput {
+                                text <=> root.url;
+                                read-only: root.busy;
+                                submitted => { if !root.busy && root.url != "" { root.start-download(); } }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            media-picker := DownloadPicker {
+                                caption: "Tipo de descarga";
+                                options: ["Video", "Audio"];
+                                enabled: !root.busy;
+                            }
+                            if !root.audio: DownloadPicker {
+                                caption: "Formato y calidad";
+                                options: root.video-formats;
+                                current-index <=> root.video-format;
+                                enabled: !root.busy;
+                            }
+                            if root.audio: DownloadPicker {
+                                caption: "Formato y calidad";
+                                options: root.audio-formats;
+                                current-index <=> root.audio-format;
+                                enabled: !root.busy;
+                            }
+                        }
+
+                        PlaylistToggle {
+                            checked: root.playlist;
+                            enabled: !root.busy;
+                            clicked => { root.playlist = !root.playlist; }
+                        }
+
+                        Divider { }
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
+                                Icon { source: @image-url("icons/folder.svg"); width: 16px; height: 16px; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                spacing: 2px;
+                                Label { text: "Guardar en"; color: Palette.scheme.muted; font-size: 11px; }
+                                Label { text: root.busy ? root.active-destination : root.destination; font-size: 12px; font-weight: 650; }
+                            }
+                            if !root.busy: Action {
+                                label: "Descargar";
+                                icon: @image-url("icons/download.svg");
+                                primary: true;
+                                enabled: root.url != "";
+                                clicked => { root.start-download(); }
+                            }
+                            if root.busy: Action {
+                                label: root.cancelling ? "Cancelando…" : "Cancelar";
+                                icon: @image-url("icons/stop.svg");
+                                enabled: !root.cancelling;
+                                clicked => { root.cancel-download(); }
+                            }
+                        }
+
+                        if root.result-message != "": HorizontalLayout {
+                            spacing: 10px;
+                            Label {
+                                text: root.result-message;
+                                color: root.result-error ? Palette.scheme.danger : Palette.scheme.success;
+                                font-size: 12px;
+                                wrap: word-wrap;
+                                horizontal-stretch: 1;
+                            }
+                            if root.can-open-destination: Action {
+                                label: "Abrir carpeta";
+                                quiet: true;
+                                icon: @image-url("icons/folder.svg");
+                                height: 32px;
+                                clicked => { root.open-destination(); }
+                            }
+                        }
+                    }
+                }
+
+                if root.busy: DownloadProgress {
+                    title: root.progress-title;
+                    detail: root.progress-detail;
+                    progress: root.progress;
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+    }
+
+    settings := PopupWindow {
+        x: root.width - self.width - 24px;
+        y: max(12px, min(74px, root.height - self.height - 12px));
+        width: 512px;
+        close-policy: close-on-click-outside;
+        forward-focus: close-settings;
+
+        Card {
+            background: Palette.scheme.rail;
+            accessible-role: groupbox;
+            accessible-label: "Configuración";
+            VerticalLayout {
+                padding: 10px;
+                spacing: 8px;
+
+                HorizontalLayout {
+                    padding-left: 5px;
+                    spacing: 10px;
+                    Label { text: "Configuración"; font-size: 19px; font-weight: 800; horizontal-stretch: 1; }
+                    close-settings := Action {
+                        label: "Cerrar";
+                        height: 28px;
+                        quiet: true;
+                        clicked => { settings.close(); }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            IconTile { icon: @image-url("icons/folder.svg"); highlighted: true; }
+                            SectionTitle {
+                                title: "Carpeta de descarga";
+                                description: "Destino de los videos, audios y listas.";
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 40px;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: Palette.scheme.border;
+                                background: Palette.scheme.control;
+                                Label {
+                                    x: 11px; width: parent.width - 22px;
+                                    text: root.destination;
+                                    font-size: 12px;
+                                }
+                            }
+                            Action {
+                                label: "Elegir carpeta";
+                                icon: @image-url("icons/folder.svg");
+                                clicked => { root.browse-destination(); }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            Label {
+                                text: root.custom-destination ? "Carpeta personalizada" : "Carpeta de descargas del sistema";
+                                font-size: 12px;
+                                color: Palette.scheme.muted;
+                                horizontal-stretch: 1;
+                            }
+                            if root.custom-destination: Action {
+                                label: "Restablecer";
+                                quiet: true;
+                                height: 25px;
+                                clicked => { root.reset-destination(); }
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            IconTile { icon: @image-url("icons/theme.svg"); highlighted: true; }
+                            SectionTitle {
+                                title: "Apariencia";
+                                description: "Elige un esquema de color.";
+                            }
+                        }
+                        for row in 2: HorizontalLayout {
+                            spacing: 8px;
+                            for column in 2: ThemeChoice {
+                                option: Palette.themes[row * 2 + column];
+                                selected: Palette.theme-index == row * 2 + column;
+                                clicked => { root.choose-theme(row * 2 + column); }
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 7px;
+                        HorizontalLayout {
+                            spacing: 10px;
+                            IconTile { icon: @image-url("icons/terminal.svg"); highlighted: true; }
+                            SectionTitle {
+                                title: "Herramientas";
+                                description: "Convierte formatos y combina pistas.";
+                                horizontal-stretch: 1;
+                            }
+                            Action {
+                                label: "Comprobar";
+                                height: 34px;
+                                clicked => { root.refresh-tools(); }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Pill {
+                                text: root.engine-ready ? "yt-dlp · Detectado" : "yt-dlp · Sin instalar";
+                                tint: root.engine-ready ? Palette.scheme.success : Palette.scheme.danger;
+                            }
+                            Pill {
+                                text: root.ffmpeg-ready ? "FFmpeg · Detectado" : "FFmpeg · Sin instalar";
+                                tint: root.ffmpeg-ready ? Palette.scheme.success : Palette.scheme.danger;
+                            }
+                            Rectangle { horizontal-stretch: 1; }
+                        }
+                    }
+                }
+
+                if root.settings-message != "": Label {
+                    text: root.settings-message;
+                    font-size: 12px;
+                    color: Palette.scheme.danger;
+                }
+            }
+        }
+    }
+}

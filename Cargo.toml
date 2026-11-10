@@ -1,0 +1,32 @@
+[package]
+name = "vibedlp"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "Descargas de video y audio con Slint y yt-dlp"
+
+[dependencies]
+command-group = "5.0"
+directories = "6.0"
+open = "5.3"
+rfd = "0.18"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+slint = { version = "=1.17.1", default-features = false, features = [
+    "accessibility",
+    "backend-winit",
+    "compat-1-2",
+    "renderer-software",
+    "raw-window-handle-06",
+    "software-renderer-systemfonts",
+] }
+tempfile = "3.27"
+url = "2.5"
+which = "8.0"
+
+[build-dependencies]
+slint-build = "=1.17.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Use the desktop's Fontconfig library at runtime, without development headers.
+i-slint-common = { version = "=1.17.1", features = ["fontconfig-dlopen"] }

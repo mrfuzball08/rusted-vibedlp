@@ -1,0 +1,186 @@
+export struct Scheme {
+    name: string,
+    background: color,
+    rail: color,
+    surface: color,
+    control: color,
+    hover: color,
+    border: color,
+    text: color,
+    muted: color,
+    accent: color,
+    ink: color,
+    success: color,
+    danger: color,
+}
+
+export global Palette {
+    in-out property <int> theme-index;
+    out property <[Scheme]> themes: [
+        {
+            name: "Ayu Dark · Gris",
+            background: #151618, rail: #1a1b1e, surface: #1e2023,
+            control: #17191c, hover: #2a2c30, border: #33363a,
+            text: #f0efec, muted: #a4a5ab, accent: #ffb875,
+            ink: #24170e, success: #acd495, danger: #ff9b92,
+        },
+        {
+            name: "Catppuccin Mocha",
+            background: #181825, rail: #1e1e2e, surface: #242437,
+            control: #1e1e2e, hover: #313244, border: #45475a,
+            text: #cdd6f4, muted: #a6adc8, accent: #cba6f7,
+            ink: #21172c, success: #a6e3a1, danger: #f38ba8,
+        },
+        {
+            name: "Nord",
+            background: #252b36, rail: #2e3440, surface: #343d4b,
+            control: #2b323e, hover: #414d60, border: #4c586d,
+            text: #eceff4, muted: #b5c0d2, accent: #88c0d0,
+            ink: #192c35, success: #a3be8c, danger: #f3a0a8,
+        },
+        {
+            name: "Dracula",
+            background: #1f2029, rail: #252630, surface: #2c2d39,
+            control: #242530, hover: #3a3c4e, border: #494b60,
+            text: #f8f8f2, muted: #b3b4cc, accent: #ff92d0,
+            ink: #31192b, success: #a2efad, danger: #ff9797,
+        },
+    ];
+    out property <Scheme> scheme: themes[theme-index];
+}
+
+export component Icon inherits Image {
+    in property <color> tint: Palette.scheme.muted;
+    colorize: tint;
+    image-fit: contain;
+    width: 18px;
+    height: 18px;
+}
+
+export component Label inherits Text {
+    color: Palette.scheme.text;
+    font-size: 14px;
+    vertical-alignment: center;
+    overflow: elide;
+}
+
+export component HitBox inherits Rectangle {
+    in property <bool> enabled: true;
+    in property <string> label;
+    out property <bool> hovered: pointer.has-hover;
+    out property <bool> focused: keys.has-focus;
+    callback clicked();
+    forward-focus: keys;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if root.enabled { root.clicked(); } }
+
+    @children
+
+    pointer := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => {
+            keys.focus();
+            root.clicked();
+        }
+    }
+
+    keys := FocusScope {
+        focus-on-click: false;
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == Key.Return || event.text == " " {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
+
+export component Action inherits HitBox {
+    in property <image> icon;
+    in property <bool> primary: false;
+    in property <bool> quiet: false;
+    private property <color> foreground: !root.enabled ? Palette.scheme.muted
+        : root.primary ? Palette.scheme.ink : Palette.scheme.text;
+    height: 40px;
+    min-width: contents.min-width;
+    horizontal-stretch: 0;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: root.focused ? Palette.scheme.accent
+        : root.primary && root.enabled ? transparent
+        : root.quiet ? transparent : Palette.scheme.border;
+    background: !root.enabled ? Palette.scheme.hover
+        : root.primary ? (root.hovered ? Palette.scheme.accent.brighter(0.10) : Palette.scheme.accent)
+        : root.hovered ? Palette.scheme.hover : root.quiet ? transparent : Palette.scheme.control;
+
+    contents := HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        spacing: 8px;
+        if root.icon.width > 0: VerticalLayout {
+            alignment: center;
+            Icon { source: root.icon; tint: root.foreground; width: 16px; height: 16px; }
+        }
+        Label { text: root.label; color: root.foreground; font-size: 13px; font-weight: 650; }
+    }
+}
+
+export component Card inherits Rectangle {
+    border-radius: 14px;
+    border-color: Palette.scheme.border;
+    border-width: 1px;
+    background: Palette.scheme.surface;
+}
+
+export component Divider inherits Rectangle {
+    height: 1px;
+    background: Palette.scheme.border;
+}
+
+export component IconTile inherits Rectangle {
+    in property <image> icon;
+    in property <bool> highlighted: false;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: highlighted ? Palette.scheme.accent.with-alpha(0.12) : Palette.scheme.hover;
+
+    Icon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        source: root.icon;
+        tint: root.highlighted ? Palette.scheme.accent : Palette.scheme.muted;
+    }
+}
+
+export component SectionTitle inherits VerticalLayout {
+    in property <string> title;
+    in property <string> description;
+    spacing: 4px;
+
+    Label { text: root.title; font-size: 17px; font-weight: 700; }
+    Label { text: root.description; font-size: 13px; color: Palette.scheme.muted; }
+}
+
+export component Pill inherits Rectangle {
+    in property <string> text;
+    in property <color> tint: Palette.scheme.muted;
+    height: 24px;
+    width: caption.preferred-width + 18px;
+    border-radius: 12px;
+    background: tint.with-alpha(0.10);
+
+    caption := Label {
+        text: root.text;
+        color: root.tint;
+        font-size: 11px;
+        font-weight: 650;
+        horizontal-alignment: center;
+    }
+}
